@@ -9,5 +9,6 @@ wheels/
 # Virtual environments
 .venv
 crossword*.png
+crossword*.svg
 suggestions.txt
 data.csv

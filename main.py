@@ -2,7 +2,6 @@ import argparse
 import csv
 import random
 import copy
-from PIL import Image, ImageDraw, ImageFont
 
 class CrosswordGenerator:
     def __init__(self, words_with_hints):
@@ -153,42 +152,35 @@ class CrosswordGenerator:
         padding = cell_size
         img_w, img_h = cols * cell_size + 2 * padding, rows * cell_size + 2 * padding
         
-        img = Image.new('RGB', (img_w, img_h), color='white')
-        draw = ImageDraw.Draw(img)
-        
-        try:
-            font_num = ImageFont.load_default(size=cell_size // 4)
-            font_char = ImageFont.load_default(size=int(cell_size * 0.6))
-        except:
-            font_num = font_char = ImageFont.load_default()
+        svg_lines = [
+            f'<svg width="{img_w}" height="{img_h}" viewBox="0 0 {img_w} {img_h}" xmlns="http://www.w3.org/2000/svg">'
+        ]
 
-        # Draw all cells with 1px outline to avoid double borders
+        # Draw all cells
         for (gx, gy) in self.grid.keys():
             x = (gx - min_x) * cell_size + padding
             y = (gy - min_y) * cell_size + padding
-            # draw.rectangle fills and draws outline. 
-            # Overlapping 1px outlines will look like consistent lines.
-            draw.rectangle([x, y, x + cell_size, y + cell_size], fill="white", outline="black", width=1)
+            svg_lines.append(f'  <rect x="{x}" y="{y}" width="{cell_size}" height="{cell_size}" fill="none" stroke="black" stroke-width="1" />')
             
             if solved:
                 char = self.grid[(gx, gy)]
-                # anchor="mm" centers the text. If not supported, we center manually.
-                try:
-                    draw.text((x + cell_size/2, y + cell_size/2), char, fill="black", font=font_char, anchor="mm")
-                except:
-                    draw.text((x + cell_size/4, y + cell_size/4), char, fill="black", font=font_char)
+                char_x = x + cell_size / 2
+                char_y = y + cell_size / 2
+                font_size = int(cell_size * 0.6)
+                svg_lines.append(f'  <text x="{char_x}" y="{char_y}" font-family="sans-serif" font-size="{font_size}" text-anchor="middle" dominant-baseline="central" fill="black">{char}</text>')
 
         # Draw numbers
+        num_font_size = cell_size // 4
         for w in self.placed_words:
             x = (w['x'] - min_x) * cell_size + padding
             y = (w['y'] - min_y) * cell_size + padding
-            draw.text((x + 3, y + 2), str(w['final_num']), fill="black", font=font_num)
+            svg_lines.append(f'  <text x="{x + 3}" y="{y + 2 + num_font_size}" font-family="sans-serif" font-size="{num_font_size}" fill="black">{w["final_num"]}</text>')
 
-        # Draw a thick outer border for the whole grid to make it pop
-        # We find the edges of the grid and draw lines or just let the 1px cells be.
-        # Let's just keep it simple with consistent 1px lines for now as it's cleaner.
-
-        img.save(filename)
+        svg_lines.append('</svg>')
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(svg_lines))
+        
         print(f"Saved: {filename} ({cols}x{rows})")
 
     def to_suggestions(self, filename="suggestions.txt"):
@@ -220,8 +212,8 @@ def main(csv_file):
     cw = CrosswordGenerator(words)
     cw.generate_best(attempts=150) # Even more attempts for density
     
-    cw.draw_crossword("crossword.png", solved=False)
-    cw.draw_crossword("crossword_solved.png", solved=True)
+    cw.draw_crossword("crossword.svg", solved=False)
+    cw.draw_crossword("crossword_solved.svg", solved=True)
     cw.to_suggestions("suggestions.txt")
 
 if __name__ == "__main__":
